@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Catch the Ball - Advanced</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: linear-gradient(to top, #74ebd5, #9face6);
+      transition: background 0.5s;
+    }
+    #gameCanvas {
+      border: 3px solid #333;
+      border-radius: 10px;
+      background: #fff;
+      display: block;
+      touch-action: none; /* For better touch control */
+    }
+    #hud {
+      position: absolute;
+      top: 15px;
+      width: 100%;
+      text-align: center;
+      font-size: 20px;
+      color: #222;
+      font-weight: bold;
+    }
+    #fps {
+      position: absolute;
+      top: 15px;
+      left: 20px;
+      font-size: 16px;
+      color: #333;
+    }
+    #lives {
+      position: absolute;
+      top: 15px;
+      right: 140px; /* Adjusted for pause button */
+      font-size: 20px;
+      color: red;
+    }
+    #pauseBtn {
+      position: absolute;
+      top: 15px;
+      right: 20px;
+      background: rgba(0,0,0,0.5);
+      color: #fff;
+      border: none;
+      padding: 5px 10px;
+      font-size: 16px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #pauseBtn:hover {
+      background: rgba(0,0,0,0.7);
+    }
+    #highScore {
+      position: absolute;
+      top: 50px;
+      left: 20px;
+      font-size: 20px;
+      color: gold;
+    }
+    #level {
+      position: absolute;
+      top: 80px;
+      left: 20px;
+      font-size: 18px;
+      color: #333;
+    }
+    #controlPanel {
+      position: absolute;
+      top: 110px;
+      left: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    #aiMode, #themeBtn, #gravityBtn {
+      background: rgba(0,0,0,0.5);
+      color: #fff;
+      border: none;
+      padding: 5px 10px;
+      font-size: 14px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #aiMode:hover, #themeBtn:hover, #gravityBtn:hover {
+      background: rgba(0,0,0,0.7);
+    }
+    #gameOver {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      display: none;
+    }
+    #gameOver h1 {
+      font-size: 40px;
+      margin-bottom: 20px;
+    }
+    #restartBtn, #shareBtn {
+      background: #333;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      font-size: 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 10px;
+    }
+    #restartBtn:hover, #shareBtn:hover {
+      background: #555;
+    }
+    #pauseOverlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+      font-size: 30px;
+      z-index: 10;
+    }
+    /* Loading Screen Styles */
+    #loadingScreen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(to top, #74ebd5, #9face6);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    #logoCanvas {
+      border: 2px solid rgba(255,255,255,0.5);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.1);
+      margin-bottom: 20px;
+    }
+    #logo {
+      font-size: 48px;
+      color: #fff;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+      margin-bottom: 40px;
+      animation: bounceIn 1s ease-in-out infinite alternate;
+    }
+    @keyframes bounceIn {
+      from { transform: translateY(0); }
+      to { transform: translateY(-10px); }
+    }
+    #progressContainer {
+      width: 300px;
+      height: 20px;
+      background: rgba(255,255,255,0.3);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 40px;
+    }
+    #progressBar {
+      height: 100%;
+      background: linear-gradient(to right, gold, orange);
+      width: 0%;
+      transition: width 0.1s linear;
+    }
+    #startBtn {
+      display: none;
+      background: #333;
+      color: #fff;
+      border: none;
+      padding: 15px 30px;
+      font-size: 20px;
+      border-radius: 10px;
+      cursor: pointer;
+      animation: pulse 1.5s infinite;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+    #startBtn:hover {
+      background: #555;
+      animation: none;
+      transform: scale(1.05);
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+  </style>
+</head>
+<body>
+  <div id="loadingScreen">
+    <canvas id="logoCanvas" width="200" height="150"></canvas>
+    <h1 id="logo">Catch the Ball</h1>
+    <div id="progressContainer">
+      <div id="progressBar"></div>
+    </div>
+    <button id="startBtn">Start Game</button>
+  </div>
+  <div id="hud">
+    Score: <span id="score">0</span>
+  </div>
+  <span id="fps">60</span>
+  <div id="lives">❤️❤️❤️</div>
+  <button id="pauseBtn">Pause</button>
+  <div id="highScore">High Score: <span id="hs">0</span></div>
+  <div id="level">Level: <span id="lvl">1</span></div>
+  <div id="controlPanel">
+    <label><input type="checkbox" id="aiCheckbox"> AI Mode</label>
+    <button id="themeBtn">Theme: Light</button>
+    <button id="gravityBtn">Gravity Off</button>
+  </div>
+  <canvas id="gameCanvas" width="400" height="600"></canvas>
+  
+  <div id="pauseOverlay">Paused<br><small>Press Space or Tap to Resume</small></div>
+  
+  <div id="gameOver">
+    <h1>Game Over</h1>
+    <p>Final Score: <span id="finalScore">0</span></p>
+    <p>Level Reached: <span id="finalLevel">1</span></p>
+    <button id="shareBtn">Share Score</button>
+    <button id="restartBtn">Restart</button>
+  </div>
+  
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const livesEl = document.getElementById('lives');
+    const highScoreEl = document.getElementById('hs');
+    const levelEl = document.getElementById('lvl');
+    const aiCheckbox = document.getElementById('aiCheckbox');
+    const gameOverScreen = document.getElementById('gameOver');
+    const finalScoreEl = document.getElementById('finalScore');
+    const finalLevelEl = document.getElementById('finalLevel');
+    const restartBtn = document.getElementById('restartBtn');
+    const shareBtn = document.getElementById('shareBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const pauseOverlay = document.getElementById('pauseOverlay');
+    const fpsEl = document.getElementById('fps');
+    const themeBtn = document.getElementById('themeBtn');
+    const gravityBtn = document.getElementById('gravityBtn');
+    const loadingScreen = document.getElementById('loadingScreen');
+    const startBtn = document.getElementById('startBtn');
+    const progressBar = document.getElementById('progressBar');
+    const logoCanvas = document.getElementById('logoCanvas');
+    const logoCtx = logoCanvas.getContext('2d');
+
+    let basket, balls, fragments, powerUp, particles, obstacles, stars, shootingStars, score, lives, highScore, level, rightPressed, leftPressed, playing, paused;
+    let doubleScoreActive = false;
+    let doubleTimer = 0;
+    let aiMode = false;
+    let theme = 'light'; // 'light' or 'dark'
+    let gravityEnabled = true;
+    let gravityMode = 'normal'; // 'normal' or 'float'
+    let audioContext; // For sound effects
+    const GRAVITY = 0.05; // Reduced gravity for slower fall
+    let fps = 60;
+    let frameCount = 0;
+    let lastTime = performance.now();
+    let lastFpsTime = lastTime;
+    let lastShootingStarSpawn = 0;
+
+    // Logo Animation
+    let logoBallY = 0;
+    let logoBallX = 100;
+    let logoBasket = { x: 60, y: 120, width: 80, height: 20 };
+    let logoFragments = [];
+    let logoParticles = [];
+    let logoAnimating = true;
+    function drawLogoBackground() {
+      // Sky gradient
+      const gradient = logoCtx.createLinearGradient(0, 0, 0, logoCanvas.height);
+      gradient.addColorStop(0, '#87CEEB');
+      gradient.addColorStop(1, '#E0F6FF');
+      logoCtx.fillStyle = gradient;
+      logoCtx.fillRect(0, 0, logoCanvas.width, logoCanvas.height);
+
+      // Sun
+      logoCtx.beginPath();
+      logoCtx.arc(100, 20, 15, 0, Math.PI * 2);
+      logoCtx.fillStyle = '#FFD700';
+      logoCtx.fill();
+
+      // Clouds
+      drawLogoCloud(20, 30);
+      drawLogoCloud(120, 40);
+    }
+
+    function drawLogoCloud(x, y) {
+      logoCtx.fillStyle = '#FFF';
+      logoCtx.beginPath();
+      logoCtx.arc(x, y, 10, 0, Math.PI * 2);
+      logoCtx.arc(x + 12, y, 12, 0, Math.PI * 2);
+      logoCtx.arc(x + 24, y, 10, 0, Math.PI * 2);
+      logoCtx.fill();
+    }
+
+    function drawLogoBasket() {
+      logoCtx.fillStyle = '#555';
+      logoCtx.fillRect(logoBasket.x, logoBasket.y, logoBasket.width, logoBasket.height);
+    }
+
+    function drawLogoBall() {
+      logoCtx.beginPath();
+      logoCtx.arc(logoBallX, logoBallY, 10, 0, Math.PI * 2);
+      logoCtx.fillStyle = 'red';
+      logoCtx.fill();
+    }
+
+    function drawLogoFragment(frag) {
+      logoCtx.beginPath();
+      logoCtx.arc(frag.x, frag.y, frag.radius, 0, Math.PI * 2);
+      logoCtx.fillStyle = frag.color;
+      logoCtx.fill();
+    }
+
+    function drawLogoParticle(p) {
+      logoCtx.fillStyle = p.color;
+      logoCtx.beginPath();
+      logoCtx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+      logoCtx.fill();
+    }
+
+    function animateLogo() {
+      if (!logoAnimating) return;
+      logoCtx.clearRect(0, 0, logoCanvas.width, logoCanvas.height);
+      drawLogoBackground();
+      drawLogoBasket();
+
+      // Check collision
+      const ballBottom = logoBallY + 10;
+      const ballTop = logoBallY - 10;
+      const ballRight = logoBallX + 10;
+      const ballLeft = logoBallX - 10;
+      const basketBottom = logoBasket.y + logoBasket.height;
+      const basketRight = logoBasket.x + logoBasket.width;
+
+      if (ballBottom >= logoBasket.y && 
+          ballTop <= basketBottom && 
+          ballRight > logoBasket.x && 
+          ballLeft < basketRight) {
+        // Create fragments
+        for (let j = 0; j < 8; j++) {
+          logoFragments.push({
+            x: logoBallX, y: logoBallY,
+            vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8 - 3,
+            radius: 2 + Math.random() * 3,
+            color: '#ff4444',
+            life: 60
+          });
+        }
+
+        // Create particles
+        for (let j = 0; j < 20; j++) {
+          logoParticles.push({
+            x: logoBallX, y: logoBallY,
+            vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10 - 5,
+            life: 30, color: `hsl(${Math.random()*360}, 70%, 60%)`
+          });
+        }
+
+        // Stop ball animation
+        logoAnimating = false;
+        return;
+      }
+
+      drawLogoBall();
+      logoBallY += 2;
+
+      if (logoBallY > logoCanvas.height) {
+        logoBallY = 0;
+      }
+
+      // Update and draw fragments
+      for (let i = logoFragments.length - 1; i >= 0; i--) {
+        const frag = logoFragments[i];
+        frag.x += frag.vx;
+        frag.y += frag.vy;
+        frag.vy += 0.05; // Gravity
+        frag.life--;
+        drawLogoFragment(frag);
+        if (frag.life <= 0 || frag.y > logoCanvas.height) {
+          logoFragments.splice(i, 1);
+        }
+      }
+
+      // Update and draw particles
+      for (let i = logoParticles.length - 1; i >= 0; i--) {
+        const p = logoParticles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.05; // Gravity
+        p.life--;
+        const alpha = (p.life / 30) * 255;
+        logoCtx.globalAlpha = alpha / 255;
+        drawLogoParticle(p);
+        logoCtx.globalAlpha = 1;
+        if (p.life <= 0) {
+          logoParticles.splice(i, 1);
+        }
+      }
+
+      // Stop animation if no more particles/fragments
+      if (logoFragments.length === 0 && logoParticles.length === 0 && !logoAnimating) {
+        logoAnimating = false;
+      } else {
+        requestAnimationFrame(animateLogo);
+      }
+    }
+    animateLogo();
+
+    // Loading Logic
+    window.addEventListener('load', () => {
+      // Simulate loading
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += Math.random() * 10;
+        if (progress >= 100) {
+          progress = 100;
+          clearInterval(interval);
+          setTimeout(() => {
+            startBtn.style.display = 'block';
+          }, 500);
+        }
+        progressBar.style.width = progress + '%';
+      }, 50);
+    });
+
+    startBtn.addEventListener('click', () => {
+      loadingScreen.style.display = 'none';
+      initGame();
+    });
+
+    function initAudio() {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    function playSound(frequency, duration) {
+      if (!audioContext) return;
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      oscillator.frequency.value = frequency;
+      oscillator.type = 'sine';
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + duration);
+    }
+
+    function drawBackground() {
+      // Sky gradient based on theme
+      let gradient;
+      if (theme === 'light') {
+        gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, '#87CEEB'); // Sky blue
+        gradient.addColorStop(1, '#E0F6FF'); // Light cyan
+      } else {
+        gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, '#000428'); // Dark blue
+        gradient.addColorStop(1, '#004e92'); // Navy
+      }
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Theme elements
+      if (theme === 'light') {
+        // Sun: Yellow circle top center
+        ctx.beginPath();
+        ctx.arc(200, 50, 30, 0, Math.PI * 2);
+        ctx.fillStyle = '#FFD700';
+        ctx.fill();
+        ctx.closePath();
+
+        // Clouds: Simple white puffs
+        drawCloud(50, 80);
+        drawCloud(300, 100);
+      } else {
+        // Moon: White circle top center
+        ctx.beginPath();
+        ctx.arc(200, 50, 25, 0, Math.PI * 2);
+        ctx.fillStyle = '#FFF';
+        ctx.fill();
+        ctx.closePath();
+
+        // Static stars
+        stars.forEach(star => {
+          ctx.beginPath();
+          ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+          ctx.fillStyle = '#FFF';
+          ctx.fill();
+          ctx.closePath();
+        });
+
+        // Shooting stars every few seconds
+        shootingStars.forEach(star => {
+          // Trail
+          ctx.strokeStyle = '#FFF';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(star.x, star.y);
+          ctx.lineTo(star.x - 30, star.y - 15);
+          ctx.stroke();
+
+          // Star head
+          ctx.beginPath();
+          ctx.arc(star.x, star.y, 2, 0, Math.PI * 2);
+          ctx.fillStyle = '#FFF';
+          ctx.fill();
+          ctx.closePath();
+
+          star.x -= star.vx;
+          star.y -= star.vy;
+          if (star.x < -30) shootingStars = shootingStars.filter(s => s !== star); // Remove
+        });
+      }
+    }
+
+    function drawCloud(x, y) {
+      ctx.fillStyle = '#FFF';
+      // Cloud puffs
+      ctx.beginPath();
+      ctx.arc(x, y, 20, 0, Math.PI * 2);
+      ctx.arc(x + 25, y, 25, 0, Math.PI * 2);
+      ctx.arc(x + 50, y, 20, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.closePath();
+    }
+
+    function initGame() {
+      basket = { x: 160, y: 560, width: 80, height: 20, speed: 6 };
+      balls = [{ x: Math.random() * (canvas.width - 2 * 10) + 10, y: 0, radius: 10, dy: 2, dx: Math.random() * 2 - 1 }];
+      fragments = [];
+      powerUp = { x: 0, y: 0, radius: 8, active: false, type: '' };
+      particles = [];
+      obstacles = [];
+      stars = [];
+      shootingStars = [];
+      for (let i = 0; i < 20; i++) {
+        stars.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * 150,
+          size: 1 + Math.random() * 2,
+          dy: 0.01 // Very very slow fall
+        });
+      }
+      score = 0;
+      lives = 5;
+      highScore = localStorage.getItem('catchBallHighScore') || 0;
+      highScoreEl.textContent = highScore;
+      level = 1;
+      levelEl.textContent = level;
+      rightPressed = false;
+      leftPressed = false;
+      playing = true;
+      paused = false;
+      doubleScoreActive = false;
+      doubleTimer = 0;
+      aiMode = false;
+      aiCheckbox.checked = false;
+      theme = 'light';
+      gravityEnabled = true;
+      gravityMode = 'normal';
+      gravityBtn.textContent = 'Gravity Off';
+      fps = 60;
+      frameCount = 0;
+      lastTime = performance.now();
+      lastFpsTime = lastTime;
+      lastShootingStarSpawn = 0;
+      scoreEl.textContent = score;
+      updateLives();
+      gameOverScreen.style.display = 'none';
+      pauseOverlay.style.display = 'none';
+      pauseBtn.textContent = 'Pause';
+      themeBtn.textContent = 'Theme: Light';
+      initAudio();
+      draw();
+    }
+
+    // Keyboard events
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight") rightPressed = true;
+      if (e.key === "ArrowLeft") leftPressed = true;
+      if (e.key === " ") {
+        e.preventDefault();
+        togglePause();
+      }
+    });
+    document.addEventListener("keyup", (e) => {
+      if (e.key === "ArrowRight") rightPressed = false;
+      if (e.key === "ArrowLeft") leftPressed = false;
+    });
+
+    // Touch events for mobile
+    let touchStartX = 0;
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      touchStartX = e.touches[0].clientX;
+    });
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      const touchX = e.touches[0].clientX;
+      const deltaX = touchX - touchStartX;
+      basket.x += deltaX * 0.5; // Sensitivity
+      basket.x = Math.max(0, Math.min(canvas.width - basket.width, basket.x));
+      touchStartX = touchX;
+    });
+    canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+    });
+
+    // AI Mode
+    aiCheckbox.addEventListener('change', () => {
+      aiMode = aiCheckbox.checked;
+    });
+
+    pauseBtn.addEventListener('click', togglePause);
+
+    function togglePause() {
+      paused = !paused;
+      pauseOverlay.style.display = paused ? 'flex' : 'none';
+      pauseBtn.textContent = paused ? 'Resume' : 'Pause';
+      if (!paused && playing) {
+        draw();
+      }
+    }
+
+    // Theme button: Single click for night, double click for day
+    let themeClickCount = 0;
+    themeBtn.addEventListener('click', () => {
+      themeClickCount++;
+      setTimeout(() => {
+        if (themeClickCount === 1) {
+          // Single click: to night
+          theme = 'dark';
+        } else if (themeClickCount === 2) {
+          // Double click: to day
+          theme = 'light';
+        }
+        themeBtn.textContent = `Theme: ${theme.charAt(0).toUpperCase() + theme.slice(1)}`;
+        themeClickCount = 0;
+      }, 300); // Double click window
+    });
+
+    // Gravity button: click for float, dblclick for normal
+    gravityBtn.addEventListener('click', () => {
+      if (gravityMode === 'normal') {
+        gravityMode = 'float';
+        balls.forEach(ball => ball.dy = 0); // Stop falling
+        gravityEnabled = false;
+      }
+    });
+    gravityBtn.addEventListener('dblclick', () => {
+      gravityMode = 'normal';
+      gravityEnabled = true;
+      // Resume with current dy or reset slightly
+      balls.forEach(ball => ball.dy = 2 + (level * 0.2));
+    });
+
+    function drawBasket() {
+      // 3D Basket: Gradient and shadow for depth
+      const gradient = ctx.createLinearGradient(basket.x, basket.y, basket.x, basket.y + basket.height);
+      gradient.addColorStop(0, '#555'); // Top light
+      gradient.addColorStop(1, '#222'); // Bottom dark
+
+      // Shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillRect(basket.x + 2, basket.y + 2, basket.width, basket.height);
+
+      // Main
+      ctx.fillStyle = gradient;
+      ctx.fillRect(basket.x, basket.y, basket.width, basket.height);
+
+      // Highlight edge
+      ctx.strokeStyle = '#888';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(basket.x, basket.y, basket.width, basket.height);
+    }
+
+    function drawBall(ball) {
+      // 3D Ball: Use radial gradient for shine and shadow
+      const gradient = ctx.createRadialGradient(ball.x - ball.radius * 0.3, ball.y - ball.radius * 0.3, ball.radius * 0.1,
+                                                ball.x, ball.y, ball.radius);
+      gradient.addColorStop(0, '#ff6666'); // Light highlight
+      gradient.addColorStop(0.7, 'red'); // Main color
+      gradient.addColorStop(1, '#cc0000'); // Dark edge
+
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+      ctx.closePath();
+
+      // Shadow for more 3D feel
+      ctx.beginPath();
+      ctx.arc(ball.x + 2, ball.y + 2, ball.radius, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.1)';
+      ctx.fill();
+      ctx.closePath();
+    }
+
+    function drawFragment(frag) {
+      ctx.beginPath();
+      ctx.arc(frag.x, frag.y, frag.radius, 0, Math.PI * 2);
+      ctx.fillStyle = frag.color;
+      ctx.fill();
+      ctx.closePath();
+    }
+
+    function drawParticle(p) {
+      ctx.fillStyle = p.color + Math.floor((p.life / 30) * 255).toString(16).padStart(2, '0'); // Fade with alpha
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawPowerUp() {
+      if (!powerUp.active) return;
+      let color = 'gold';
+      if (powerUp.type === 'life') color = 'green';
+      if (powerUp.type === 'double') color = 'blue';
+      ctx.beginPath();
+      ctx.arc(powerUp.x, powerUp.y, powerUp.radius, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.closePath();
+    }
+
+    function drawObstacle(obs) {
+      ctx.fillStyle = 'purple';
+      ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+    }
+
+    function moveBasket() {
+      if (aiMode) {
+        // Improved AI: Better prediction, faster response
+        if (balls.length > 0) {
+          let targetX = basket.x + basket.width / 2;
+          let soonestBall = null;
+          let minTime = Infinity;
+
+          balls.forEach(ball => {
+            const timeToBottom = (canvas.height - ball.y) / Math.max(Math.abs(ball.dy), 0.001); // Use abs for safety
+            const landingX = ball.x + ball.dx * timeToBottom;
+            if (timeToBottom < minTime) {
+              minTime = timeToBottom;
+              soonestBall = { landingX, ball };
+            }
+          });
+
+          if (soonestBall) {
+            targetX = soonestBall.landingX - basket.width / 2;
+          }
+
+          // Faster movement for AI
+          const dx = targetX - (basket.x + basket.width / 2);
+          basket.x += dx * 0.3; // Increased easing for quicker response
+        }
+        basket.x = Math.max(0, Math.min(canvas.width - basket.width, basket.x));
+        return;
+      }
+      // Original controls with easing for smoothness
+      let targetX = basket.x;
+      if (rightPressed) targetX += basket.speed;
+      if (leftPressed) targetX -= basket.speed;
+      const dx = targetX - basket.x;
+      basket.x += dx * 0.8; // Easing for all modes
+      basket.x = Math.max(0, Math.min(canvas.width - basket.width, basket.x));
+    }
+
+    function spawnPowerUp() {
+      if (Math.random() < 0.005 && !powerUp.active) { // ~3% chance per second
+        powerUp.x = Math.random() * (canvas.width - 2 * powerUp.radius) + powerUp.radius;
+        powerUp.y = 0;
+        powerUp.active = true;
+        const rand = Math.random();
+        if (rand > 0.66) powerUp.type = 'double';
+        else if (rand > 0.33) powerUp.type = 'slow';
+        else powerUp.type = 'life';
+      }
+    }
+
+    function spawnObstacle() {
+      if (level >= 3 && Math.random() < 0.01) { // Spawn at level 3+
+        obstacles.push({
+          x: Math.random() * (canvas.width - 50),
+          y: 0,
+          width: 50,
+          height: 20,
+          dy: 2 + level * 0.5
+        });
+      }
+    }
+
+    function spawnShootingStar() {
+      const now = performance.now();
+      if (now - lastShootingStarSpawn > 8000 + Math.random() * 12000) { // Every 8-20s
+        shootingStars.push({
+          x: canvas.width + 30,
+          y: 50 + Math.random() * 100,
+          vx: 3 + Math.random() * 2,
+          vy: 1 + Math.random() * 0.5
+        });
+        lastShootingStarSpawn = now;
+      }
+    }
+
+    function updatePowerUp() {
+      if (!powerUp.active) return;
+      powerUp.y += balls[0] ? balls[0].dy : 2; // Same speed as first ball
+      if (powerUp.y > canvas.height) {
+        powerUp.active = false;
+      }
+      // Check catch for powerUp
+      const puBottom = powerUp.y + powerUp.radius;
+      const puTop = powerUp.y - powerUp.radius;
+      const puRight = powerUp.x + powerUp.radius;
+      const puLeft = powerUp.x - powerUp.radius;
+      const basketBottom = basket.y + basket.height;
+      const basketRight = basket.x + basket.width;
+
+      if (puBottom >= basket.y && 
+          puTop <= basketBottom && 
+          puRight > basket.x && 
+          puLeft < basketRight) {
+        if (powerUp.type === 'slow') {
+          balls.forEach(b => b.dy = Math.max(b.dy - 1, 1));
+          playSound(800, 0.2); // High tone for slow
+        } else if (powerUp.type === 'life') {
+          lives = Math.min(lives + 1, 5);
+          updateLives();
+          playSound(1000, 0.3); // Higher for life
+        } else if (powerUp.type === 'double') {
+          doubleScoreActive = true;
+          doubleTimer = 900; // ~15 sec at 60fps
+          playSound(900, 0.3);
+        }
+        powerUp.active = false;
+      }
+    }
+
+    function updateObstacles() {
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        const obs = obstacles[i];
+        obs.y += obs.dy;
+        if (obs.y > canvas.height) {
+          obstacles.splice(i, 1);
+          continue;
+        }
+        // Check collision with balls
+        balls.forEach(ball => {
+          if (ball.x + ball.radius > obs.x && ball.x - ball.radius < obs.x + obs.width &&
+              ball.y + ball.radius > obs.y && ball.y - ball.radius < obs.y + obs.height) {
+            // Bounce ball
+            ball.dy *= -0.8; // Lose some speed on bounce
+            ball.dx *= -0.8;
+          }
+        });
+      }
+    }
+
+    function updateParticles() {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        if (gravityEnabled) p.vy += GRAVITY; // Gravity on particles too
+        p.life--;
+        if (p.life <= 0) {
+          particles.splice(i, 1);
+        }
+      }
+    }
+
+    function updateFragments() {
+      for (let i = fragments.length - 1; i >= 0; i--) {
+        const frag = fragments[i];
+        frag.x += frag.vx;
+        frag.y += frag.vy;
+        frag.vy += GRAVITY; // Gravity
+        frag.life--;
+
+        // Check collision with other balls
+        balls.forEach((ball, j) => {
+          const dist = Math.sqrt((frag.x - ball.x)**2 + (frag.y - ball.y)**2);
+          if (dist < frag.radius + ball.radius) {
+            // Blast the ball: remove it and create particles
+            balls.splice(j, 1);
+            for (let k = 0; k < 20; k++) {
+              particles.push({
+                x: ball.x, y: ball.y,
+                vx: (Math.random() - 0.5) * 15, vy: (Math.random() - 0.5) * 15,
+                life: 40, color: `hsl(${Math.random()*360}, 70%, 60%)`
+              });
+            }
+            playSound(400, 0.2); // Blast sound
+          }
+        });
+
+        if (frag.life <= 0 || frag.y > canvas.height) {
+          fragments.splice(i, 1);
+        }
+      }
+    }
+
+    function updateBalls() {
+      for (let i = balls.length - 1; i >= 0; i--) {
+        const ball = balls[i];
+        ball.x += ball.dx; // Horizontal movement
+        ball.y += ball.dy;
+        if (gravityEnabled && gravityMode === 'normal') {
+          ball.dy += GRAVITY; // Physics: gravity
+        }
+
+        // Wall bounce
+        if (ball.x - ball.radius < 0 || ball.x + ball.radius > canvas.width) {
+          ball.dx = -ball.dx;
+          ball.x = Math.max(ball.radius, Math.min(canvas.width - ball.radius, ball.x));
+        }
+
+        // Catch check
+        const ballBottom = ball.y + ball.radius;
+        const ballTop = ball.y - ball.radius;
+        const ballRight = ball.x + ball.radius;
+        const ballLeft = ball.x - ball.radius;
+        const basketBottom = basket.y + basket.height;
+        const basketRight = basket.x + basket.width;
+
+        if (ballBottom >= basket.y && 
+            ballTop <= basketBottom && 
+            ballRight > basket.x && 
+            ballLeft < basketRight) {
+          let points = 1;
+          if (doubleScoreActive) points += 1;
+          score += points;
+          scoreEl.textContent = score;
+          playSound(600, 0.1); // Catch sound
+
+          // Create fragments instead of just particles
+          for (let j = 0; j < 8; j++) {
+            fragments.push({
+              x: ball.x, y: ball.y,
+              vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8 - 3,
+              radius: 3 + Math.random() * 4,
+              color: '#ff4444',
+              life: 60
+            });
+          }
+
+          // Additional particles
+          for (let j = 0; j < 20; j++) {
+            particles.push({
+              x: ball.x, y: ball.y,
+              vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10 - 5,
+              life: 300, color: `hsl(${Math.random()*360}, 70%, 60%)`
+            });
+          }
+
+          resetBall(i);
+          updateLevel();
+          if (score > highScore) {
+            highScore = score;
+            highScoreEl.textContent = highScore;
+            localStorage.setItem('catchBallHighScore', highScore);
+          }
+          ball.dy = Math.min(ball.dy + 0.1, 8); // Reduced speed increase, cap lower
+        }
+
+        // Miss check
+        if (ballBottom > canvas.height) {
+          lives--;
+          updateLives();
+          playSound(200, 0.2); // Low buzz for miss
+          if ('vibration' in navigator) navigator.vibrate(200);
+          if (lives <= 0) {
+            playing = false;
+            finalScoreEl.textContent = score;
+            finalLevelEl.textContent = level;
+            gameOver();
+          }
+          resetBall(i);
+          // Slightly reduce speed on miss
+          ball.dy = Math.max(ball.dy - 0.05, 2); // Reduced
+        }
+      }
+    }
+
+    function resetBall(index) {
+      if (score % 10 === 0 && balls.length < 3) { // Add new ball every 10 points
+        balls.push({
+          x: Math.random() * (canvas.width - 2 * 10) + 10,
+          y: 0,
+          radius: 10,
+          dy: 2 + (level * 0.2), // Reduced
+          dx: Math.random() * 2 - 1
+        });
+      }
+      // Replace the caught/missed ball
+      balls[index] = {
+        x: Math.random() * (canvas.width - 2 * 10) + 10,
+        y: 0,
+        radius: 10,
+        dy: 2 + (level * 0.2), // Reduced
+        dx: Math.random() * 2 - 1
+      };
+    }
+
+    function updateLevel() {
+      const newLevel = Math.min(Math.floor(score / 20) + 1, 5); // Total 5 levels
+      if (newLevel > level) {
+        level = newLevel;
+        levelEl.textContent = level;
+        // 5 specific backgrounds (but now using canvas, so ignore CSS)
+        playSound(1200, 0.5); // Level up sound
+      }
+    }
+
+    function updateLives() {
+      livesEl.textContent = "❤️".repeat(lives);
+    }
+
+    function gameOver() {
+      gameOverScreen.style.display = 'block';
+      if (audioContext) audioContext.close();
+    }
+
+    // Share functionality
+    shareBtn.addEventListener('click', () => {
+      const text = `I scored ${score} in Catch the Ball! Level ${level}. Play now: ${window.location.href}`;
+      if (navigator.share) {
+        navigator.share({ title: 'Catch the Ball', text, url: window.location.href });
+      } else {
+        // Fallback: Copy to clipboard
+        navigator.clipboard.writeText(text).then(() => {
+          alert('Score copied to clipboard!');
+        });
+      }
+    });
+
+    function updateFPS(currentTime) {
+      frameCount++;
+      if (currentTime - lastFpsTime >= 1000) {
+        fps = Math.round((frameCount * 1000) / (currentTime - lastFpsTime));
+        fpsEl.textContent = fps;
+        frameCount = 0;
+        lastFpsTime = currentTime;
+      }
+    }
+
+    function draw() {
+      if (!playing || paused) {
+        if (playing) requestAnimationFrame(draw); // Keep requesting if playing but paused
+        return;
+      }
+      const currentTime = performance.now();
+      updateFPS(currentTime);
+
+      drawBackground(); // Draw theme background
+      drawBasket();
+      balls.forEach(drawBall);
+      fragments.forEach(drawFragment);
+      particles.forEach(drawParticle);
+      obstacles.forEach(drawObstacle);
+      drawPowerUp();
+      moveBasket();
+      spawnPowerUp();
+      spawnObstacle();
+      if (theme === 'dark') spawnShootingStar();
+      updateBalls();
+      updatePowerUp();
+      updateObstacles();
+      updateParticles();
+      updateFragments();
+
+      // Update double score timer
+      if (doubleScoreActive) {
+        doubleTimer--;
+        if (doubleTimer <= 0) doubleScoreActive = false;
+      }
+
+      requestAnimationFrame(draw);
+    }
+
+    restartBtn.addEventListener("click", initGame);
+
+    // initGame(); // Commented out to start only on button click
+  </script>
+</body>
+</html>
